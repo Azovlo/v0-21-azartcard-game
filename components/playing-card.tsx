@@ -1,144 +1,90 @@
 "use client"
 
-import { useRef, useState } from "react"
+import { useRef, useMemo } from "react"
 import { useFrame } from "@react-three/fiber"
-import { Text } from "@react-three/drei"
-import type * as THREE from "three"
-import type { Card } from "./blackjack-game"
+import { Text, RoundedBox } from "@react-three/drei"
+import * as THREE from "three"
 
-type PlayingCardProps = {
-  card: Card
-  position: [number, number, number]
-  rotation: [number, number, number]
-  delay?: number
-  hidden?: boolean
+export type CardProps = {
+  suit: "hearts" | "diamonds" | "clubs" | "spades"
+  value: string
+  isHidden?: boolean
 }
 
-export function PlayingCard({ card, position, rotation, delay = 0, hidden = false }: PlayingCardProps) {
+export function PlayingCard({ suit, value, isHidden = false }: CardProps) {
   const meshRef = useRef<THREE.Group>(null)
-  const [animationProgress, setAnimationProgress] = useState(0)
-  const [startTime] = useState(Date.now())
 
-  useFrame(() => {
-    if (!meshRef.current) return
+  const suitSymbols = useMemo(() => ({
+    hearts: "♥",
+    diamonds: "♦",
+    clubs: "♣",
+    spades: "♠",
+  }), [])
 
-    const elapsed = (Date.now() - startTime) / 1000
-    const progress = Math.min((elapsed - delay) / 0.5, 1)
+  const color = useMemo(() => (suit === "hearts" || suit === "diamonds" ? "red" : "black"), [suit])
 
-    if (progress > 0 && progress < 1) {
-      setAnimationProgress(progress)
-
-      const startY = 5
-      const endY = position[1]
-      const currentY = startY + (endY - startY) * progress
-
-      meshRef.current.position.y = currentY
-      meshRef.current.rotation.x = (1 - progress) * Math.PI * 2
-    } else if (progress >= 1) {
-      meshRef.current.position.set(...position)
-      meshRef.current.rotation.set(...rotation)
+  useFrame((state, delta) => {
+    if (meshRef.current) {
+      // Optional: Add any animations here, e.g., hover effect
     }
   })
 
-  const getSuitColor = (suit: Card["suit"]) => {
-    return suit === "hearts" || suit === "diamonds" ? "#dc2626" : "#000000"
-  }
-
-  const getSuitSymbol = (suit: Card["suit"]) => {
-    const symbols = {
-      hearts: "♥",
-      diamonds: "♦",
-      clubs: "♣",
-      spades: "♠",
-    }
-    return symbols[suit]
-  }
+  const cardMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: "white",
+    roughness: 0.5,
+    metalness: 0.3,
+  }), [])
+  
+  const backMaterial = useMemo(() => new THREE.MeshStandardMaterial({
+    color: "#4a148c",
+    roughness: 0.3,
+    metalness: 0.2,
+  }), [])
 
   return (
-    <group ref={meshRef} position={[position[0], 5, position[2]]}>
+    <group ref={meshRef} rotation={[0, isHidden ? Math.PI : 0, 0]}>
       {/* Card body */}
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[0.9, 0.02, 1.3]} />
-        <meshStandardMaterial color={hidden ? "#1a4d2e" : "#ffffff"} roughness={0.3} metalness={0.1} />
-      </mesh>
+      <group>
+        {/* Front Face */}
+        <mesh position={[0,0,0.011]} material={cardMaterial}>
+          <planeGeometry args={[0.9, 1.3]} />
+        </mesh>
+        
+        {/* Back Face */}
+         <mesh rotation={[0,Math.PI,0]} material={backMaterial}>
+          <planeGeometry args={[0.9, 1.3]} />
+        </mesh>
+        
+        {/* Edge */}
+        <mesh>
+            <extrudeGeometry args={[new THREE.Shape([
+                new THREE.Vector2(-0.45, -0.65),
+                new THREE.Vector2(0.45, -0.65),
+                new THREE.Vector2(0.45, 0.65),
+                new THREE.Vector2(-0.45, 0.65),
+            ]), { depth: 0.02, bevelEnabled: false }]} />
+            <meshStandardMaterial color="lightgray" />
+        </mesh>
+      </group>
 
-      {!hidden && (
+
+      {!isHidden && (
         <>
-          {/* Card value - top left */}
-          <Text
-            position={[-0.3, 0.015, -0.5]}
-            rotation={[-Math.PI / 2, 0, 0]}
-            fontSize={0.15}
-            color={getSuitColor(card.suit)}
-            anchorX="center"
-            anchorY="middle"
-            font="/fonts/Geist-Bold.ttf"
-          >
-            {card.value}
+          <Text position={[-0.35, 0.5, 0.02]} fontSize={0.12} color={color} anchorX="left" anchorY="top">
+            {value}
           </Text>
-
-          {/* Suit symbol - top left */}
-          <Text
-            position={[-0.3, 0.015, -0.35]}
-            rotation={[-Math.PI / 2, 0, 0]}
-            fontSize={0.12}
-            color={getSuitColor(card.suit)}
-            anchorX="center"
-            anchorY="middle"
-          >
-            {getSuitSymbol(card.suit)}
+          <Text position={[-0.35, 0.4, 0.02]} fontSize={0.1} color={color} anchorX="left" anchorY="top">
+            {suitSymbols[suit]}
           </Text>
-
-          {/* Center suit symbol */}
-          <Text
-            position={[0, 0.015, 0]}
-            rotation={[-Math.PI / 2, 0, 0]}
-            fontSize={0.4}
-            color={getSuitColor(card.suit)}
-            anchorX="center"
-            anchorY="middle"
-          >
-            {getSuitSymbol(card.suit)}
+          <Text position={[0.35, -0.5, 0.02]} fontSize={0.12} color={color} anchorX="right" anchorY="bottom" rotation={[0, 0, Math.PI]}>
+            {value}
           </Text>
-
-          {/* Card value - bottom right */}
-          <Text
-            position={[0.3, 0.015, 0.5]}
-            rotation={[-Math.PI / 2, 0, Math.PI]}
-            fontSize={0.15}
-            color={getSuitColor(card.suit)}
-            anchorX="center"
-            anchorY="middle"
-            font="/fonts/Geist-Bold.ttf"
-          >
-            {card.value}
+           <Text position={[0.35, -0.4, 0.02]} fontSize={0.1} color={color} anchorX="right" anchorY="bottom" rotation={[0, 0, Math.PI]}>
+            {suitSymbols[suit]}
           </Text>
-
-          {/* Suit symbol - bottom right */}
-          <Text
-            position={[0.3, 0.015, 0.35]}
-            rotation={[-Math.PI / 2, 0, Math.PI]}
-            fontSize={0.12}
-            color={getSuitColor(card.suit)}
-            anchorX="center"
-            anchorY="middle"
-          >
-            {getSuitSymbol(card.suit)}
+          <Text position={[0, 0, 0.02]} fontSize={0.3} color={color} anchorX="center" anchorY="middle">
+            {suitSymbols[suit]}
           </Text>
-        </>
-      )}
-
-      {hidden && (
-        <>
-          {/* Card back pattern */}
-          <mesh position={[0, 0.015, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[0.7, 1.1]} />
-            <meshStandardMaterial color="#8b4513" />
-          </mesh>
-          <mesh position={[0, 0.016, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[0.6, 1.0]} />
-            <meshStandardMaterial color="#d4af37" />
-          </mesh>
         </>
       )}
     </group>
